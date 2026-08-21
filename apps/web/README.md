@@ -37,11 +37,13 @@ The current implementation passes both commands.
 
 ## Docker
 
-From the repository root:
+For a complete local PostgreSQL/API/Nuxt environment, run from the repository
+root:
 
 ```powershell
-copy .env.docker.example .env
-docker compose up -d --build
+docker compose -f compose.yaml -f compose.local.yaml up -d --build
 ```
 
-The frontend is published at `http://localhost:3000`. See the repository's `DEPLOY.md` for VPS deployment, firewall, update, and rollback instructions.
+The frontend is published at `http://localhost:3000`. See
+`LOCAL_DEVELOPMENT.md` for database inspection and persistence commands, and
+`DEPLOY.md` for VPS deployment, firewall, update, and rollback instructions.

@@ -140,6 +140,8 @@ Current technical boundaries:
 - The frontend has a multi-stage, non-root Docker image and a standalone Compose service for VPS previews.
 - The Go API in `apps/api` has embedded migrations, email-code auth, profile endpoints, initial offer CRUD, OpenAPI, and a non-root Docker image.
 - Nuxt proxies `/api/*` to the Go service so browsers never need a separate API origin or public API port.
+- `compose.local.yaml` provides a one-command local PostgreSQL/API/Nuxt environment with persistent database storage and UI-visible development email codes.
+- `STARTUP.md` documents fully local, SSH-tunnel-to-VPS-database, and complete VPS startup modes.
 - `npm run typecheck` and `npm run build` pass.
 
 Next frontend integration work:
@@ -1297,7 +1299,7 @@ Tasks:
 - [ ] Review flows with at least five target users/merchants. `[You]`
 - [ ] Approve visual direction and accessibility baseline. `[Both]`
 - [x] Scaffold the initial `apps/web` and `apps/api` monorepo layout. `[Me]`
-- [ ] Create local Docker Compose environment. `[Me]`
+- [x] Create a persistent local PostgreSQL/API/Nuxt Docker Compose environment. `[Me]`
 - [x] Containerize and document the standalone customer frontend for VPS preview deployments. `[Me]`
 - [x] Add PostgreSQL migrations and initial offer seed data. `[Me]`
 - [ ] Enable PostGIS and replace illustrative map coordinates with spatial queries. `[Me]`
@@ -1596,6 +1598,7 @@ Russia-specific legal and official guidance:
 
 | Date | Change |
 |---|---|
+| 2026-08-21 | Added a persistent local PostgreSQL Compose environment, development email-code flow, and database inspection/storage guide |
 | 2026-08-21 | Added the Go/PostgreSQL backend, embedded migration and seed, email registration/login, secure sessions, profile API, offer CRUD, OpenAPI contract, Nuxt API proxy, and combined VPS Compose deployment |
 | 2026-08-21 | Added a production Nuxt Docker image, Compose service, health check, and VPS deployment/rollback guide for the customer frontend |
 | 2026-08-21 | Implemented the Nuxt customer frontend prototype, documented routes and mock boundaries, and kept delivery as a future concept outside the pickup-only MVP |

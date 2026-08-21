@@ -13,6 +13,13 @@ The authoritative initial contract is [`api/openapi.yaml`](api/openapi.yaml).
 
 ## Local run
 
+The easiest option is the repository's complete local Docker stack. See
+[`../../LOCAL_DEVELOPMENT.md`](../../LOCAL_DEVELOPMENT.md). It starts PostgreSQL,
+the API, and Nuxt with one Compose command and exposes development email codes
+in the UI.
+
+To run only the API manually:
+
 Go 1.26+ and PostgreSQL 14+ are supported. Set the environment and start the API:
 
 ```bash

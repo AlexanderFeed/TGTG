@@ -15,9 +15,9 @@ services:
     environment:
       APP_ENV: production
       API_ADDR: :8080
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DATABASE_URL: ${DATABASE_URL:-}
       MIGRATE_ON_START: ${MIGRATE_ON_START:-true}
-      OTP_PEPPER: ${OTP_PEPPER:?Set OTP_PEPPER in .env}
+      OTP_PEPPER: ${OTP_PEPPER:-}
       OTP_EXPIRY: ${OTP_EXPIRY:-10m}
       OTP_COOLDOWN: ${OTP_COOLDOWN:-1m}
       OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-5}

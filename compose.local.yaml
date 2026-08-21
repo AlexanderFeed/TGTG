@@ -1,0 +1,41 @@
+name: eshche-est-local
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LOCAL_DB_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: eshche_est
+      POSTGRES_USER: eshche_est
+      POSTGRES_PASSWORD: local-development-password
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eshche_est -d eshche_est"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+  api:
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgres://eshche_est:local-development-password@db:5432/eshche_est?sslmode=disable
+      OTP_PEPPER: local-development-only-pepper-0123456789-abcdef
+      EMAIL_DELIVERY: development
+      EXPOSE_DEV_CODES: "true"
+      SESSION_COOKIE_SECURE: "false"
+      ADMIN_EMAILS: admin@example.test
+
+  web:
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_local_data:
