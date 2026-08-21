@@ -1,0 +1,7 @@
+.nuxt
+.output
+node_modules
+.env
+.DS_Store
+npm-debug.log*
+PLAN.md
