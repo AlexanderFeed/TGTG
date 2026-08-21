@@ -1,7 +1,3 @@
-.nuxt
-.output
-node_modules
 .env
-.DS_Store
-npm-debug.log*
-PLAN.md
+apps/api/bin/
+apps/api/coverage.out

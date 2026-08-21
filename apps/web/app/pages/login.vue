@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ArrowLeft, KeyRound, LockKeyhole, Phone, ShieldCheck } from 'lucide-vue-next'
+import { ArrowLeft, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-vue-next'
 
-const { login, isAuthenticated } = useAuth()
-const step = ref<'phone' | 'code'>('phone')
-const phone = ref('+7 ')
+const { requestLoginCode, verifyLoginCode, errorMessage, isAuthenticated } = useAuth()
+const step = ref<'email' | 'code'>('email')
+const email = ref('')
 const code = ref('')
+const challengeId = ref('')
+const devCode = ref('')
 const isSubmitting = ref(false)
 const error = ref('')
 
@@ -12,30 +14,41 @@ if (isAuthenticated.value) {
   await navigateTo('/')
 }
 
-const normalizedPhone = computed(() => phone.value.replace(/\D/g, ''))
-
 const requestCode = async () => {
   error.value = ''
-  if (normalizedPhone.value.length < 11) {
-    error.value = 'Введите российский номер из 11 цифр'
+  if (!email.value.trim() || !email.value.includes('@')) {
+    error.value = 'Введите корректный email'
     return
   }
   isSubmitting.value = true
-  await new Promise(resolve => setTimeout(resolve, 450))
-  isSubmitting.value = false
-  step.value = 'code'
+  try {
+    const response = await requestLoginCode(email.value)
+    challengeId.value = response.challengeId
+    devCode.value = response.devCode || ''
+    if (response.devCode) code.value = response.devCode
+    step.value = 'code'
+  } catch (requestError) {
+    error.value = errorMessage(requestError)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const verifyCode = async () => {
   error.value = ''
-  if (code.value.replace(/\D/g, '').length !== 4) {
-    error.value = 'Введите любые 4 цифры для демо-входа'
+  if (!/^\d{6}$/.test(code.value)) {
+    error.value = 'Введите код из 6 цифр'
     return
   }
   isSubmitting.value = true
-  await new Promise(resolve => setTimeout(resolve, 450))
-  login(phone.value)
-  await navigateTo('/')
+  try {
+    await verifyLoginCode(challengeId.value, email.value, code.value)
+    await navigateTo('/')
+  } catch (verifyError) {
+    error.value = errorMessage(verifyError)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 useSeoMeta({ title: 'Войти — ЕщёЕсть' })
@@ -50,7 +63,7 @@ useSeoMeta({ title: 'Войти — ЕщёЕсть' })
         <blockquote>«Каждый спасённый пакет — это вкусный план на вечер и чуть меньше лишних отходов.»</blockquote>
         <div class="auth-page__aside-points">
           <span><ShieldCheck :size="19" /> Демо без настоящих платежей</span>
-          <span><LockKeyhole :size="19" /> Данные остаются в вашем браузере</span>
+          <span><LockKeyhole :size="19" /> Защищённая серверная сессия</span>
         </div>
       </div>
       <img src="/images/cafe-rescue.png" alt="Десерты и кофе в уютном кафе">
@@ -59,19 +72,20 @@ useSeoMeta({ title: 'Войти — ЕщёЕсть' })
     <div class="auth-page__main">
       <div class="auth-card">
         <div class="auth-card__mobile-logo"><AppLogo /></div>
-        <div class="auth-card__icon"><Phone v-if="step === 'phone'" :size="25" /><KeyRound v-else :size="25" /></div>
+        <div class="auth-card__icon"><Mail v-if="step === 'email'" :size="25" /><KeyRound v-else :size="25" /></div>
         <p class="eyebrow">С возвращением</p>
-        <h1>{{ step === 'phone' ? 'Войти по номеру' : 'Введите код' }}</h1>
+        <h1>{{ step === 'email' ? 'Войти по email' : 'Введите код' }}</h1>
         <p class="auth-card__lead">
-          {{ step === 'phone' ? 'Мы отправим короткий код подтверждения.' : `Демо-код отправлен на ${phone}. Подойдут любые 4 цифры.` }}
+          {{ step === 'email' ? 'Мы отправим шестизначный код подтверждения.' : `Код отправлен на ${email}.` }}
+          <strong v-if="devCode"> Локальный код: {{ devCode }}</strong>
         </p>
 
-        <form v-if="step === 'phone'" class="form-grid" @submit.prevent="requestCode">
+        <form v-if="step === 'email'" class="form-grid" @submit.prevent="requestCode">
           <div class="field">
-            <label for="login-phone">Номер телефона</label>
+            <label for="login-email">Email</label>
             <div class="input-wrap">
-              <Phone :size="18" />
-              <input id="login-phone" v-model="phone" class="input input--icon" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 999 123-45-67">
+              <Mail :size="18" />
+              <input id="login-email" v-model="email" class="input input--icon" type="email" autocomplete="email" placeholder="you@example.ru">
             </div>
           </div>
           <p v-if="error" class="auth-card__error">{{ error }}</p>
@@ -82,18 +96,18 @@ useSeoMeta({ title: 'Войти — ЕщёЕсть' })
 
         <form v-else class="form-grid" @submit.prevent="verifyCode">
           <div class="field">
-            <label for="login-code">Код из SMS</label>
-            <input id="login-code" v-model="code" class="input auth-card__code" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="••••" autofocus>
+            <label for="login-code">Код из письма</label>
+            <input id="login-code" v-model="code" class="input auth-card__code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" autofocus>
           </div>
           <p v-if="error" class="auth-card__error">{{ error }}</p>
           <button class="button button--primary button--block" type="submit" :disabled="isSubmitting">
             {{ isSubmitting ? 'Проверяем…' : 'Войти' }}
           </button>
-          <button class="button button--ghost button--block" type="button" @click="step = 'phone'; code = ''; error = ''">Изменить номер</button>
+          <button class="button button--ghost button--block" type="button" @click="step = 'email'; code = ''; devCode = ''; error = ''">Изменить email</button>
         </form>
 
         <p class="auth-card__switch">Впервые здесь? <NuxtLink to="/register">Создать аккаунт</NuxtLink></p>
-        <p class="auth-card__demo">Пет-проект: OTP и авторизация сейчас работают локально и предназначены только для демонстрации интерфейса.</p>
+        <p class="auth-card__demo">Пет-проект: аккаунт и сессия сохраняются в PostgreSQL. В локальном режиме код показывается на экране; на VPS он отправляется через SMTP.</p>
       </div>
     </div>
   </section>

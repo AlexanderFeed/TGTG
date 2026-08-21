@@ -1,9 +1,11 @@
 export interface MarketplaceUser {
   id: string
   name: string
-  phone: string
-  email?: string
+  email: string
   city: string
+  role: 'customer' | 'merchant' | 'admin'
+  verifiedAt: string
+  createdAt: string
   impact: {
     rescued: number
     savedRubles: number

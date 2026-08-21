@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ArrowLeft, Check, Mail, Phone, Sparkles, UserRound } from 'lucide-vue-next'
+import { ArrowLeft, Check, KeyRound, Mail, Sparkles, UserRound } from 'lucide-vue-next'
 
-const { register, isAuthenticated } = useAuth()
+const { requestRegistrationCode, verifyRegistrationCode, errorMessage, isAuthenticated } = useAuth()
+const step = ref<'details' | 'code'>('details')
 const form = reactive({
   name: '',
-  phone: '+7 ',
   email: '',
 })
+const code = ref('')
+const challengeId = ref('')
+const devCode = ref('')
 const isSubmitting = ref(false)
 const error = ref('')
 
@@ -14,20 +17,45 @@ if (isAuthenticated.value) {
   await navigateTo('/')
 }
 
-const submit = async () => {
+const requestCode = async () => {
   error.value = ''
   if (form.name.trim().length < 2) {
     error.value = 'Расскажите, как к вам обращаться'
     return
   }
-  if (form.phone.replace(/\D/g, '').length < 11) {
-    error.value = 'Введите российский номер из 11 цифр'
+  if (!form.email.trim() || !form.email.includes('@')) {
+    error.value = 'Введите корректный email'
     return
   }
   isSubmitting.value = true
-  await new Promise(resolve => setTimeout(resolve, 500))
-  register(form)
-  await navigateTo('/')
+  try {
+    const response = await requestRegistrationCode(form.name, form.email)
+    challengeId.value = response.challengeId
+    devCode.value = response.devCode || ''
+    if (response.devCode) code.value = response.devCode
+    step.value = 'code'
+  } catch (requestError) {
+    error.value = errorMessage(requestError)
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const verifyCode = async () => {
+  error.value = ''
+  if (!/^\d{6}$/.test(code.value)) {
+    error.value = 'Введите код из 6 цифр'
+    return
+  }
+  isSubmitting.value = true
+  try {
+    await verifyRegistrationCode(challengeId.value, form.email, code.value)
+    await navigateTo('/')
+  } catch (verifyError) {
+    error.value = errorMessage(verifyError)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 useSeoMeta({ title: 'Регистрация — ЕщёЕсть' })
@@ -42,26 +70,19 @@ useSeoMeta({ title: 'Регистрация — ЕщёЕсть' })
           <AppLogo />
           <p class="eyebrow">Новый аккаунт</p>
           <!-- <h1>Начнём спасать вкусное?</h1> -->
-          <p>Регистрация занимает меньше минуты. Для пет-проекта данные сохраняются локально.</p>
+          <p>{{ step === 'details' ? 'Регистрация занимает меньше минуты.' : `Код подтверждения отправлен на ${form.email}.` }} <strong v-if="devCode">Локальный код: {{ devCode }}</strong></p>
         </div>
 
-        <form class="form-grid" @submit.prevent="submit">
+        <form v-if="step === 'details'" class="form-grid" @submit.prevent="requestCode">
           <div class="field">
-            <label for="register-name">Ваше логин</label>
+            <label for="register-name">Ваше имя</label>
             <div class="input-wrap">
               <UserRound :size="18" />
-              <input id="register-name" v-model="form.name" class="input input--icon" type="text" autocomplete="name" placeholder="Логин">
+              <input id="register-name" v-model="form.name" class="input input--icon" type="text" autocomplete="name" placeholder="Алексей">
             </div>
           </div>
           <div class="field">
-            <label for="register-phone">Номер телефона</label>
-            <div class="input-wrap">
-              <Phone :size="18" />
-              <input id="register-phone" v-model="form.phone" class="input input--icon" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 999 123-45-67">
-            </div>
-          </div>
-          <div class="field">
-            <label for="register-email">Email <span>(необязательно)</span></label>
+            <label for="register-email">Email</label>
             <div class="input-wrap">
               <Mail :size="18" />
               <input id="register-email" v-model="form.email" class="input input--icon" type="email" autocomplete="email" placeholder="you@example.ru">
@@ -69,8 +90,23 @@ useSeoMeta({ title: 'Регистрация — ЕщёЕсть' })
           </div>
           <p v-if="error" class="register-card__error">{{ error }}</p>
           <button class="button button--primary button--block" type="submit" :disabled="isSubmitting">
-            <Sparkles :size="18" /> {{ isSubmitting ? 'Создаём…' : 'Создать аккаунт' }}
+            <Sparkles :size="18" /> {{ isSubmitting ? 'Отправляем…' : 'Получить код' }}
           </button>
+        </form>
+
+        <form v-else class="form-grid" @submit.prevent="verifyCode">
+          <div class="field">
+            <label for="register-code">Код из письма</label>
+            <div class="input-wrap">
+              <KeyRound :size="18" />
+              <input id="register-code" v-model="code" class="input input--icon auth-card__code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" autofocus>
+            </div>
+          </div>
+          <p v-if="error" class="register-card__error">{{ error }}</p>
+          <button class="button button--primary button--block" type="submit" :disabled="isSubmitting">
+            <Sparkles :size="18" /> {{ isSubmitting ? 'Проверяем…' : 'Создать аккаунт' }}
+          </button>
+          <button class="button button--ghost button--block" type="button" @click="step = 'details'; code = ''; devCode = ''; error = ''">Изменить данные</button>
         </form>
 
         <p class="register-card__switch">Уже есть аккаунт? <NuxtLink to="/login">Войти</NuxtLink></p>
@@ -102,6 +138,7 @@ useSeoMeta({ title: 'Регистрация — ЕщёЕсть' })
 .register-card__heading > p:last-child { margin-bottom: 28px; color: var(--ink-700); line-height: 1.6; }
 .field label span { color: var(--ink-500); font-weight: 600; }
 .register-card__error { margin: -5px 0 0; color: var(--danger); font-size: .8rem; font-weight: 720; }
+#register-code { text-align: center; font-size: 1.35rem; font-weight: 900; letter-spacing: .35em; }
 .register-card__switch { margin: 24px 0 0; color: var(--ink-700); font-size: .86rem; text-align: center; }
 .register-card__switch a { color: var(--forest-900); font-weight: 900; }
 .register-page__aside { position: relative; display: grid; align-content: end; min-height: 720px; overflow: hidden; padding: 40px; color: var(--white); background: var(--forest-900); }

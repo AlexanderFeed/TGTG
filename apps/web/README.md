@@ -1,10 +1,10 @@
 # ЕщёЕсть customer web
 
-Nuxt 4 / Vue 3 frontend prototype for a Russian food-rescue marketplace. It currently uses local mock data and browser cookies; no backend or payment provider is connected.
+Nuxt 4 / Vue 3 customer frontend for a Russian food-rescue marketplace. Email authentication and profile edits use the Go/PostgreSQL backend through a same-origin Nuxt proxy. Offers, favorites, reservations, orders, and payments still use prototype data/state.
 
 ## Run locally
 
-Requirements: Node.js 20+ and npm.
+Requirements: Node.js 22+, npm, and the API from `apps/api` on port 8080.
 
 ```powershell
 npm install
@@ -16,15 +16,15 @@ Open `http://localhost:3000`.
 ## Demo flows
 
 - Guest home: `/`
-- Login: `/login` — enter a valid-looking Russian phone number, then any four digits
-- Registration: `/register`
+- Login: `/login` — request and verify a six-digit email code
+- Registration: `/register` — verify email, create the PostgreSQL user, and start a session
 - Nearby map/list: `/discover`
 - Browse and filters: `/browse`
 - Offer detail and reservation prototype: `/offers/bakery-evening`
 - Pickup order and future delivery concept: `/delivery`
 - Profile and favorites: `/profile`
 
-Authentication, favorites, and profile changes are stored only in cookies. The delivery tab is intentionally marked as a future concept because the MVP in `PLAN.md` remains pickup-only.
+The opaque session token is stored in an HttpOnly cookie; session and user records live in PostgreSQL. Favorites remain in a browser cookie. The delivery tab is intentionally marked as a future concept because the MVP in `PLAN.md` remains pickup-only.
 
 ## Verification
 
@@ -34,3 +34,14 @@ npm run build
 ```
 
 The current implementation passes both commands.
+
+## Docker
+
+From the repository root:
+
+```powershell
+copy .env.docker.example .env
+docker compose up -d --build
+```
+
+The frontend is published at `http://localhost:3000`. See the repository's `DEPLOY.md` for VPS deployment, firewall, update, and rollback instructions.

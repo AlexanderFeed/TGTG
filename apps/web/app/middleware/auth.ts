@@ -1,6 +1,9 @@
-export default defineNuxtRouteMiddleware(() => {
-  const { isAuthenticated } = useAuth()
+export default defineNuxtRouteMiddleware(async () => {
+  const { initialized, isAuthenticated, refreshSession } = useAuth()
+  if (!initialized.value) {
+    await refreshSession()
+  }
   if (!isAuthenticated.value) {
-    return navigateTo('/login')
+    return navigateTo('/login', { replace: true })
   }
 })

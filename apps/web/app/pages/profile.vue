@@ -3,13 +3,14 @@ import { Bell, ChevronRight, CircleHelp, Edit3, Heart, LogOut, Mail, MapPin, Pac
 
 definePageMeta({ middleware: 'auth' })
 
-const { user, updateProfile, logout } = useAuth()
+const { user, updateProfile, errorMessage, logout } = useAuth()
 const { favorites } = useMarketplace()
 const editMode = ref(false)
 const saved = ref(false)
+const saving = ref(false)
+const saveError = ref('')
 const form = reactive({
   name: user.value?.name || '',
-  email: user.value?.email || '',
   city: user.value?.city || 'Москва',
 })
 const notifications = reactive({
@@ -18,11 +19,29 @@ const notifications = reactive({
   news: false,
 })
 
-const save = () => {
-  updateProfile(form)
-  editMode.value = false
-  saved.value = true
-  setTimeout(() => saved.value = false, 1800)
+watch(user, (current) => {
+  if (!current || editMode.value) return
+  form.name = current.name
+  form.city = current.city
+}, { immediate: true })
+
+const memberSince = computed(() => user.value?.createdAt
+  ? new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date(user.value.createdAt))
+  : '')
+
+const save = async () => {
+  saveError.value = ''
+  saving.value = true
+  try {
+    await updateProfile(form)
+    editMode.value = false
+    saved.value = true
+    setTimeout(() => saved.value = false, 1800)
+  } catch (requestError) {
+    saveError.value = errorMessage(requestError)
+  } finally {
+    saving.value = false
+  }
 }
 
 useSeoMeta({ title: 'Профиль — ЕщёЕсть' })
@@ -36,7 +55,7 @@ useSeoMeta({ title: 'Профиль — ЕщёЕсть' })
         <div class="profile-hero__copy">
           <p>Ваш профиль</p>
           <h1>{{ user?.name }}</h1>
-          <span><MapPin :size="15" /> {{ user?.city }} · с нами с августа 2026</span>
+          <span><MapPin :size="15" /> {{ user?.city }} · с нами с {{ memberSince }}</span>
         </div>
         <button class="button button--accent" type="button" @click="editMode = !editMode"><Edit3 :size="17" /> {{ editMode ? 'Отменить' : 'Редактировать' }}</button>
         <div class="profile-hero__stats">
@@ -51,13 +70,13 @@ useSeoMeta({ title: 'Профиль — ЕщёЕсть' })
       <div class="profile-layout">
         <div class="profile-main">
           <article class="profile-card card">
-            <div class="profile-card__heading"><div><h2>Личные данные</h2><p>Демо-профиль хранится в cookie браузера.</p></div><UserRound :size="23" /></div>
+            <div class="profile-card__heading"><div><h2>Личные данные</h2><p>Профиль хранится в PostgreSQL, а email подтверждён.</p></div><UserRound :size="23" /></div>
             <form class="profile-form" @submit.prevent="save">
               <div class="field"><label for="profile-name">Имя</label><input id="profile-name" v-model="form.name" class="input" :disabled="!editMode"></div>
-              <div class="field"><label for="profile-phone">Телефон</label><input id="profile-phone" class="input" :value="user?.phone" disabled></div>
-              <div class="field"><label for="profile-email">Email</label><input id="profile-email" v-model="form.email" class="input" type="email" :disabled="!editMode"></div>
+              <div class="field"><label for="profile-email">Подтверждённый email</label><input id="profile-email" class="input" type="email" :value="user?.email" disabled></div>
               <div class="field"><label for="profile-city">Город</label><select id="profile-city" v-model="form.city" class="select" :disabled="!editMode"><option>Москва</option><option>Санкт-Петербург</option><option>Казань</option></select></div>
-              <button v-if="editMode" class="button button--primary" type="submit"><Save :size="17" /> Сохранить</button>
+              <p v-if="saveError" class="profile-form__error">{{ saveError }}</p>
+              <button v-if="editMode" class="button button--primary" type="submit" :disabled="saving"><Save :size="17" /> {{ saving ? 'Сохраняем…' : 'Сохранить' }}</button>
             </form>
           </article>
 
@@ -124,6 +143,7 @@ useSeoMeta({ title: 'Профиль — ЕщёЕсть' })
 .profile-card__heading > svg { color: var(--coral-500); }
 .profile-form { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .profile-form .button { justify-self: start; }
+.profile-form__error { grid-column: 1 / -1; margin: 0; color: var(--danger); font-size: .8rem; font-weight: 720; }
 .profile-form .input:disabled, .profile-form .select:disabled { color: var(--ink-700); background: var(--cream-50); opacity: 1; }
 .profile-favorites { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .profile-empty { display: grid; justify-items: center; padding: 30px 15px 12px; text-align: center; }

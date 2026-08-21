@@ -370,10 +370,16 @@ a:focus-visible {
 
 .scroll-row {
   display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   gap: 12px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 4px 2px 10px;
   scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .scroll-row::-webkit-scrollbar {

@@ -8,10 +8,15 @@ defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
+
 </script>
 
 <template>
-  <div class="scroll-row" role="list" aria-label="Категории">
+  <div
+    class="scroll-row"
+    role="list"
+    aria-label="Категории"
+  >
     <button
       v-for="category in categories"
       :key="category.id"
@@ -29,7 +34,7 @@ const emit = defineEmits<{
 <style scoped>
 .category {
   display: flex;
-  min-width: max-content;
+  flex: 0 0 auto;
   min-height: 48px;
   align-items: center;
   gap: 8px;
@@ -40,6 +45,7 @@ const emit = defineEmits<{
   background: var(--white);
   cursor: pointer;
   font-weight: 800;
+  white-space: nowrap;
   transition: color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
@@ -62,4 +68,5 @@ const emit = defineEmits<{
   background: var(--cream-100);
   font-size: 1.04rem;
 }
+
 </style>

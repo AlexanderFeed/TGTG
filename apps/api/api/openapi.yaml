@@ -1,0 +1,416 @@
+openapi: 3.1.0
+info:
+  title: ЕщёЕсть API
+  version: 0.1.0
+  description: Initial pet-project contract for email authentication, profiles, and offer CRUD.
+servers:
+  - url: /api/v1
+    description: Same-origin Nuxt proxy
+tags:
+  - name: Auth
+  - name: Profile
+  - name: Offers
+paths:
+  /auth/register/request:
+    post:
+      tags: [Auth]
+      summary: Send a registration code by email
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/ChallengeAccepted'
+        '409':
+          $ref: '#/components/responses/APIError'
+        '422':
+          $ref: '#/components/responses/APIError'
+        '429':
+          $ref: '#/components/responses/APIError'
+  /auth/register/verify:
+    post:
+      tags: [Auth]
+      summary: Verify email and create an account and session
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      requestBody:
+        $ref: '#/components/requestBodies/VerifyCode'
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '401':
+          $ref: '#/components/responses/APIError'
+        '410':
+          $ref: '#/components/responses/APIError'
+        '422':
+          $ref: '#/components/responses/APIError'
+        '429':
+          $ref: '#/components/responses/APIError'
+  /auth/login/request:
+    post:
+      tags: [Auth]
+      summary: Send a login code by email when the account exists
+      description: Returns the same accepted shape for unknown emails to reduce account enumeration.
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '202':
+          $ref: '#/components/responses/ChallengeAccepted'
+        '422':
+          $ref: '#/components/responses/APIError'
+        '429':
+          $ref: '#/components/responses/APIError'
+  /auth/login/verify:
+    post:
+      tags: [Auth]
+      summary: Verify a login code and create a session
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      requestBody:
+        $ref: '#/components/requestBodies/VerifyCode'
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '401':
+          $ref: '#/components/responses/APIError'
+        '410':
+          $ref: '#/components/responses/APIError'
+        '422':
+          $ref: '#/components/responses/APIError'
+        '429':
+          $ref: '#/components/responses/APIError'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Read the current session user
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '401':
+          $ref: '#/components/responses/APIError'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current session
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/APIError'
+  /users/me:
+    patch:
+      tags: [Profile]
+      summary: Update the current user's editable profile
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, city]
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                city:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '401':
+          $ref: '#/components/responses/APIError'
+        '422':
+          $ref: '#/components/responses/APIError'
+  /offers:
+    get:
+      tags: [Offers]
+      summary: List active offers
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Active offers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Offer'
+    post:
+      tags: [Offers]
+      summary: Create an offer
+      description: Requires a merchant or admin account.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      requestBody:
+        $ref: '#/components/requestBodies/OfferInput'
+      responses:
+        '201':
+          $ref: '#/components/responses/OfferResponse'
+        '401':
+          $ref: '#/components/responses/APIError'
+        '403':
+          $ref: '#/components/responses/APIError'
+        '422':
+          $ref: '#/components/responses/APIError'
+  /offers/{offerId}:
+    parameters:
+      - in: path
+        name: offerId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Offers]
+      summary: Read an offer
+      responses:
+        '200':
+          $ref: '#/components/responses/OfferResponse'
+        '404':
+          $ref: '#/components/responses/APIError'
+    put:
+      tags: [Offers]
+      summary: Replace an offer's editable fields
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      requestBody:
+        $ref: '#/components/requestBodies/OfferInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/OfferResponse'
+        '401':
+          $ref: '#/components/responses/APIError'
+        '403':
+          $ref: '#/components/responses/APIError'
+        '404':
+          $ref: '#/components/responses/APIError'
+        '422':
+          $ref: '#/components/responses/APIError'
+    delete:
+      tags: [Offers]
+      summary: Soft-delete an offer
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RequestedWith'
+      responses:
+        '204':
+          description: Offer deleted
+        '401':
+          $ref: '#/components/responses/APIError'
+        '403':
+          $ref: '#/components/responses/APIError'
+        '404':
+          $ref: '#/components/responses/APIError'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: eshche_est_session
+  parameters:
+    RequestedWith:
+      in: header
+      name: X-Requested-With
+      required: true
+      schema:
+        type: string
+        const: eshche-est-web
+  requestBodies:
+    VerifyCode:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/VerifyCode'
+    OfferInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OfferInput'
+  responses:
+    ChallengeAccepted:
+      description: A challenge was accepted
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Challenge'
+    UserResponse:
+      description: Current user
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user]
+            properties:
+              user:
+                $ref: '#/components/schemas/User'
+    OfferResponse:
+      description: Offer
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [offer]
+            properties:
+              offer:
+                $ref: '#/components/schemas/Offer'
+    APIError:
+      description: API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        email:
+          type: string
+          format: email
+    VerifyCode:
+      type: object
+      additionalProperties: false
+      required: [challengeId, email, code]
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+    Challenge:
+      type: object
+      required: [challengeId, expiresInSeconds, delivery]
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+        expiresInSeconds:
+          type: integer
+        delivery:
+          type: string
+          const: email
+        devCode:
+          type: string
+          description: Present only when explicitly enabled in development mode.
+    User:
+      type: object
+      required: [id, name, email, city, role, verifiedAt, createdAt, impact]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        city: { type: string }
+        role: { type: string, enum: [customer, merchant, admin] }
+        verifiedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        impact:
+          type: object
+          required: [rescued, savedRubles, co2Kg]
+          properties:
+            rescued: { type: integer }
+            savedRubles: { type: integer }
+            co2Kg: { type: number }
+    OfferInput:
+      type: object
+      additionalProperties: false
+      required: [title, merchant, category, description, contents, imageUrl, priceKopecks, originalPriceKopecks, pickupStart, pickupEnd, quantity, address, district, delivery, status]
+      properties:
+        title: { type: string, minLength: 2, maxLength: 120 }
+        merchant: { type: string, minLength: 2, maxLength: 120 }
+        category: { type: string, minLength: 2, maxLength: 80 }
+        description: { type: string }
+        contents: { type: string }
+        imageUrl: { type: string }
+        priceKopecks: { type: integer, minimum: 1 }
+        originalPriceKopecks: { type: integer, minimum: 1 }
+        pickupStart: { type: string, format: date-time }
+        pickupEnd: { type: string, format: date-time }
+        quantity: { type: integer, minimum: 0 }
+        address: { type: string, minLength: 2 }
+        district: { type: string }
+        latitude: { type: [number, 'null'], minimum: -90, maximum: 90 }
+        longitude: { type: [number, 'null'], minimum: -180, maximum: 180 }
+        delivery: { type: boolean }
+        status: { type: string, enum: [draft, active, paused] }
+    Offer:
+      allOf:
+        - $ref: '#/components/schemas/OfferInput'
+        - type: object
+          required: [id, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }

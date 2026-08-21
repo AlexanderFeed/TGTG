@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-01',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   css: ['~/assets/css/main.css'],
   typescript: {
     strict: true,
@@ -22,6 +22,7 @@ export default defineNuxtConfig({
     },
   },
   runtimeConfig: {
+    apiInternalUrl: 'http://127.0.0.1:8080',
     public: {
       appName: 'ЕщёЕсть',
     },
