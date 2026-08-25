@@ -1,6 +1,9 @@
 <script setup lang="ts">
 const { refreshSession } = useAuth()
 
+// app.vue is the frontend application's root entry component. callOnce hydrates
+// auth state once during initial rendering, so the header/home page know whether
+// to show login actions or the signed-in experience.
 await callOnce('auth-session', () => refreshSession())
 
 useHead({
@@ -11,7 +14,7 @@ useHead({
 </script>
 
 <template>
-  <NuxtLoadingIndicator color="#ff6b4a" :height="3" />
+  <NuxtLoadingIndicator />
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>

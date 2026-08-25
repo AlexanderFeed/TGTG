@@ -7,6 +7,13 @@ const activeId = ref(offers[0]?.id || '')
 const query = ref('')
 const mobileView = ref<'map' | 'list'>('map')
 const radius = ref('3')
+const { coordinates, status: locationStatus, locationError, requestLocation } = useBrowserLocation()
+
+// Coordinates prove that browser geolocation works for guests. Offer distances
+// are still mock values until a real map/geocoding provider is connected.
+const locationSummary = computed(() => coordinates.value
+  ? `${coordinates.value.latitude.toFixed(4)}, ${coordinates.value.longitude.toFixed(4)} · ±${Math.round(coordinates.value.accuracy)} м`
+  : 'Чистые пруды · Москва')
 
 const filteredOffers = computed(() => {
   const search = query.value.trim().toLocaleLowerCase('ru-RU')
@@ -38,7 +45,13 @@ useSeoMeta({
       <div>
         <p class="eyebrow">Карта предложений</p>
         <h1>Что есть рядом</h1>
-        <p>Чистые пруды · Москва <button type="button">Изменить</button></p>
+        <p class="discover-location">
+          {{ locationSummary }}
+          <button type="button" :disabled="locationStatus === 'loading'" @click="requestLocation">
+            {{ coordinates ? 'Обновить' : locationStatus === 'loading' ? 'Определяем…' : 'Определить моё место' }}
+          </button>
+        </p>
+        <small v-if="locationError" class="discover-location__error">{{ locationError }}</small>
       </div>
       <div class="discover-page__view-switch" role="group" aria-label="Вид результатов">
         <button :class="{ active: mobileView === 'map' }" type="button" @click="mobileView = 'map'"><Map :size="17" /> Карта</button>
@@ -98,7 +111,13 @@ useSeoMeta({
       </div>
 
       <div class="discover-map-wrap" :class="{ 'discover-map-wrap--mobile-hidden': mobileView !== 'map' }">
-        <MarketplaceMap :offers="filteredOffers" :active-id="activeOffer?.id" @select="activeId = $event" />
+        <MarketplaceMap
+          :offers="filteredOffers"
+          :active-id="activeOffer?.id"
+          :has-user-location="Boolean(coordinates)"
+          @select="activeId = $event"
+          @locate="requestLocation"
+        />
 
         <article v-if="activeOffer" class="map-preview">
           <img :src="activeOffer.image" :alt="activeOffer.title">
@@ -119,8 +138,10 @@ useSeoMeta({
 .discover-page { padding: 38px 0 70px; }
 .discover-page__heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
 .discover-page h1 { margin-bottom: 10px; font-size: clamp(2.25rem, 5vw, 4.2rem); }
-.discover-page__heading p:last-child { margin: 0; color: var(--ink-700); }
-.discover-page__heading p button { margin-left: 7px; padding: 0; color: var(--forest-700); background: transparent; cursor: pointer; font-size: .82rem; font-weight: 850; text-decoration: underline; }
+.discover-location { margin: 0; color: var(--ink-700); }
+.discover-location button { margin-left: 7px; padding: 0; color: var(--forest-700); background: transparent; cursor: pointer; font-size: .82rem; font-weight: 850; text-decoration: underline; }
+.discover-location button:disabled { cursor: wait; opacity: .65; }
+.discover-location__error { display: block; margin-top: 7px; color: var(--danger); font-size: .72rem; }
 .discover-page__view-switch { display: none; padding: 4px; border-radius: 14px; background: var(--cream-100); }
 .discover-page__view-switch button { display: flex; min-height: 38px; align-items: center; gap: 6px; padding: 0 12px; border-radius: 10px; color: var(--ink-700); background: transparent; }
 .discover-page__view-switch button.active { color: var(--forest-900); background: var(--white); box-shadow: var(--shadow-sm); }

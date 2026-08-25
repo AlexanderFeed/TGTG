@@ -2,12 +2,11 @@
 import { Compass, Home, PackageCheck, Search, UserRound } from 'lucide-vue-next'
 
 const route = useRoute()
-const { isAuthenticated } = useAuth()
 
 const links = [
-  { label: 'Главная', to: '/', icon: Home },
+  { label: 'Главная', to: '/browse', icon: Home },
   { label: 'Рядом', to: '/discover', icon: Compass },
-  { label: 'Каталог', to: '/browse', icon: Search },
+  { label: 'Каталог', to: '/', icon: Search },
   { label: 'Заказ', to: '/delivery', icon: PackageCheck },
   { label: 'Профиль', to: '/profile', icon: UserRound },
 ]
@@ -16,7 +15,7 @@ const isActive = (to: string) => to === '/' ? route.path === '/' : route.path.st
 </script>
 
 <template>
-  <nav v-if="isAuthenticated" class="bottom-nav" aria-label="Мобильная навигация">
+  <nav class="bottom-nav" aria-label="Мобильная навигация">
     <NuxtLink
       v-for="link in links"
       :key="link.to"

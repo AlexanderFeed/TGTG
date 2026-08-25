@@ -1,5 +1,9 @@
 package httpapi
 
+// Offer handlers demonstrate ordinary CRUD after authentication. The browser
+// can read offers publicly; creating/updating/deleting additionally requires a
+// merchant/admin role and, for merchants, ownership of the offer.
+
 import (
 	"errors"
 	"net/http"
@@ -11,6 +15,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// offerInput is deliberately separate from store.Offer. HTTP input must not be
+// allowed to choose database-owned fields such as ID, CreatedBy, or timestamps.
 type offerInput struct {
 	Title                string    `json:"title"`
 	Merchant             string    `json:"merchant"`
@@ -31,6 +37,8 @@ type offerInput struct {
 	Status               string    `json:"status"`
 }
 
+// listOffers maps URL query parameters to a store filter.
+// Example: GET /v1/offers?q=bread&category=bakery&limit=20.
 func (s *Server) listOffers(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -45,6 +53,7 @@ func (s *Server) listOffers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": offers})
 }
 
+// getOffer reads {offerID} from the path registered in server.go.
 func (s *Server) getOffer(w http.ResponseWriter, r *http.Request) {
 	offerID := chi.URLParam(r, "offerID")
 	if !idPattern.MatchString(offerID) {
@@ -63,6 +72,8 @@ func (s *Server) getOffer(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"offer": offer})
 }
 
+// createOffer first checks authorization, then validates JSON, generates the
+// server-owned ID, and finally delegates the INSERT to the store.
 func (s *Server) createOffer(w http.ResponseWriter, r *http.Request) {
 	user := currentUser(r)
 	if user.Role != "admin" && user.Role != "merchant" {
@@ -89,6 +100,8 @@ func (s *Server) createOffer(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"offer": created})
 }
 
+// updateOffer loads the current row before changing it so ownership can be
+// checked. Admins may edit any offer; merchants only their own.
 func (s *Server) updateOffer(w http.ResponseWriter, r *http.Request) {
 	user := currentUser(r)
 	offerID := chi.URLParam(r, "offerID")
@@ -123,6 +136,8 @@ func (s *Server) updateOffer(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"offer": updated})
 }
 
+// deleteOffer applies the same ownership rule, then performs a soft delete.
+// The store changes status to "deleted" instead of physically removing data.
 func (s *Server) deleteOffer(w http.ResponseWriter, r *http.Request) {
 	user := currentUser(r)
 	offerID := chi.URLParam(r, "offerID")
@@ -150,6 +165,9 @@ func (s *Server) deleteOffer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// validateOffer enforces friendly API validation. PostgreSQL constraints repeat
+// key invariants as a final safety net, but database errors are less useful to
+// frontend users than this explicit 422 response.
 func validateOffer(w http.ResponseWriter, input offerInput) bool {
 	statusAllowed := input.Status == "draft" || input.Status == "active" || input.Status == "paused"
 	validCoordinates := (input.Latitude == nil || (*input.Latitude >= -90 && *input.Latitude <= 90)) &&
@@ -166,6 +184,8 @@ func validateOffer(w http.ResponseWriter, input offerInput) bool {
 	return true
 }
 
+// toOffer converts the transport model into the persistence/domain model and
+// trims human-entered strings at the boundary.
 func (input offerInput) toOffer() store.Offer {
 	return store.Offer{
 		Title: strings.TrimSpace(input.Title), Merchant: strings.TrimSpace(input.Merchant),

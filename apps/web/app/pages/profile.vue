@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Bell, ChevronRight, CircleHelp, Edit3, Heart, LogOut, Mail, MapPin, PackageCheck, Save, Settings, ShieldCheck, Smartphone, UserRound } from 'lucide-vue-next'
 
+// Nuxt runs app/middleware/auth.ts before this protected page is rendered.
 definePageMeta({ middleware: 'auth' })
 
 const { user, updateProfile, errorMessage, logout } = useAuth()
@@ -19,6 +20,8 @@ const notifications = reactive({
   news: false,
 })
 
+// Keep the form synchronized when refreshSession replaces the shared user, but
+// do not overwrite fields while the visitor is actively editing them.
 watch(user, (current) => {
   if (!current || editMode.value) return
   form.name = current.name
@@ -29,6 +32,8 @@ const memberSince = computed(() => user.value?.createdAt
   ? new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date(user.value.createdAt))
   : '')
 
+// The template's @submit.prevent calls save. updateProfile sends PATCH through
+// useAuth and updates the shared user so the header/profile change together.
 const save = async () => {
   saveError.value = ''
   saving.value = true
@@ -86,7 +91,7 @@ useSeoMeta({ title: 'Профиль — ЕщёЕсть' })
               <OfferCard v-for="offer in favorites" :key="offer.id" :offer="offer" compact />
             </div>
             <div v-else class="profile-empty">
-              <span>♡</span><p>Нажмите сердечко на карточке предложения, чтобы вернуться к нему позже.</p><NuxtLink class="button button--secondary" to="/browse">Открыть каталог</NuxtLink>
+              <span>♡</span><p>Нажмите сердечко на карточке предложения, чтобы вернуться к нему позже.</p><NuxtLink class="button button--secondary" to="/">Открыть каталог</NuxtLink>
             </div>
           </article>
 

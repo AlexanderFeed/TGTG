@@ -1,5 +1,9 @@
 package config
 
+// Package config is the only backend layer that reads environment variables.
+// The rest of the application receives a validated Config value, which makes
+// dependencies explicit and keeps os.Getenv calls out of business logic.
+
 import (
 	"errors"
 	"fmt"
@@ -9,6 +13,9 @@ import (
 	"time"
 )
 
+// Config contains every runtime setting used by the API. Values come from the
+// process environment (for example apps/api/.env locally or Docker Compose on
+// a server), not from data sent by the frontend.
 type Config struct {
 	Address         string
 	Environment     string
@@ -32,6 +39,9 @@ type Config struct {
 	ShutdownTimeout time.Duration
 }
 
+// Load reads environment variables, supplies safe development defaults, and
+// rejects combinations that would make the API unsafe or unable to start.
+// It is called exactly once from cmd/api/main.go.
 func Load() (Config, error) {
 	cfg := Config{
 		Address:         env("API_ADDR", ":8080"),
@@ -56,6 +66,8 @@ func Load() (Config, error) {
 		ShutdownTimeout: envDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
 	}
 
+	// Validate after collecting all values. An error returned here reaches
+	// main.go, which logs it and exits before opening the HTTP port.
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")
 	}
@@ -80,11 +92,14 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// IsAdmin reports whether a normalized email is in the comma-separated
+// ADMIN_EMAILS setting. It is used only while registering a new account.
 func (c Config) IsAdmin(email string) bool {
 	_, ok := c.AdminEmails[strings.ToLower(strings.TrimSpace(email))]
 	return ok
 }
 
+// env returns a trimmed string or a fallback when the variable is absent.
 func env(key, fallback string) string {
 	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
 		return value
@@ -92,6 +107,7 @@ func env(key, fallback string) string {
 	return fallback
 }
 
+// envBool deliberately uses the fallback for an absent or malformed value.
 func envBool(key string, fallback bool) bool {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -104,6 +120,7 @@ func envBool(key string, fallback bool) bool {
 	return parsed
 }
 
+// envInt is the integer equivalent of envBool.
 func envInt(key string, fallback int) int {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -116,6 +133,7 @@ func envInt(key string, fallback int) int {
 	return parsed
 }
 
+// envDuration accepts Go duration strings such as "30s", "10m", or "24h".
 func envDuration(key string, fallback time.Duration) time.Duration {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -128,6 +146,8 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 	return parsed
 }
 
+// parseEmailSet turns "a@example.com,b@example.com" into a set. The empty
+// struct occupies no data and map lookup gives efficient membership checks.
 func parseEmailSet(raw string) map[string]struct{} {
 	result := make(map[string]struct{})
 	for _, item := range strings.Split(raw, ",") {
@@ -138,6 +158,8 @@ func parseEmailSet(raw string) map[string]struct{} {
 	return result
 }
 
+// String returns only non-secret fields so Config can safely appear in logs.
+// Do not add DATABASE_URL, OTP_PEPPER, or SMTP_PASSWORD here.
 func (c Config) String() string {
 	return fmt.Sprintf("environment=%s address=%s email_delivery=%s", c.Environment, c.Address, c.EmailDelivery)
 }

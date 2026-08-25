@@ -1,582 +1,135 @@
 <script setup lang="ts">
-import { ArrowRight, Check, Clock3, Leaf, MapPin, PackageCheck, Search, ShieldCheck, Sparkles } from 'lucide-vue-next'
-import { categories, demoOrder, findOffer, offers } from '~/data/marketplace'
+import { ArrowDownUp, Search, SlidersHorizontal, Truck, X } from 'lucide-vue-next'
+import { categories, offers } from '~/data/marketplace'
 
-const { user, isAuthenticated } = useAuth()
-const selectedCategory = ref('all')
-const activeOrderOffer = findOffer(demoOrder.offerId)
+const route = useRoute()
+const query = ref('')
+const selectedCategory = ref(typeof route.query.category === 'string' ? route.query.category : 'all')
+const sort = ref<'distance' | 'price' | 'rating'>('distance')
+const deliveryOnly = ref(false)
+const showFilters = ref(false)
 
-const recommended = computed(() => {
-  const matching = selectedCategory.value === 'all'
-    ? offers
-    : offers.filter((offer) => offer.category === selectedCategory.value)
-  return matching.slice(0, 3)
+const filtered = computed(() => {
+  const search = query.value.trim().toLocaleLowerCase('ru-RU')
+  const result = offers.filter((offer) => {
+    const category = selectedCategory.value === 'all' || offer.category === selectedCategory.value
+    const text = !search || [offer.title, offer.merchant, offer.district, ...offer.tags].some(value => value.toLocaleLowerCase('ru-RU').includes(search))
+    const delivery = !deliveryOnly.value || offer.delivery
+    return category && text && delivery
+  })
+
+  return [...result].sort((a, b) => {
+    if (sort.value === 'price') return a.price - b.price
+    if (sort.value === 'rating') return b.rating - a.rating
+    return a.distanceKm - b.distanceKm
+  })
 })
 
-useSeoMeta({
-  title: computed(() => isAuthenticated.value
-    ? 'Главная — ЕщёЕсть'
-    : 'ЕщёЕсть — хорошая еда рядом со скидкой'),
-  description: 'Находите свежие сюрприз-пакеты из кафе, пекарен и магазинов рядом и забирайте их со скидкой.',
-})
+const clearFilters = () => {
+  query.value = ''
+  selectedCategory.value = 'all'
+  deliveryOnly.value = false
+  sort.value = 'distance'
+}
+
+useSeoMeta({ title: 'Каталог предложений — ЕщёЕсть' })
 </script>
 
 <template>
-  <div>
-    <template v-if="!isAuthenticated">
-      <section class="guest-hero">
-        <div class="container guest-hero__grid">
-          <div class="guest-hero__copy">
-            <p class="eyebrow">Вкусно. Выгодно. Бережно.</p>
-            <h1>Хорошая еда.<br><span>Ещё есть.</span></h1>
-            <p class="guest-hero__lead">
-              Забирайте сюрприз-пакеты из любимых кафе, пекарен и магазинов со скидкой до 70%.
-            </p>
-            <div class="guest-hero__actions">
-              <NuxtLink class="button button--accent" to="/discover">
-                Найти еду рядом <ArrowRight :size="19" />
-              </NuxtLink>
-              <NuxtLink class="button button--secondary" to="/register">Создать аккаунт</NuxtLink>
-            </div>
-            <div class="guest-hero__trust">
-              <span><Check :size="15" /> Без подписки</span>
-              <span><Check :size="15" /> Забираете сами</span>
-              <span><Check :size="15" /> Свежие предложения каждый день</span>
-            </div>
-          </div>
-
-          <div class="guest-hero__visual">
-            <div class="guest-hero__image-wrap">
-              <img src="/images/bakery-rescue.png" alt="Свежая выпечка в бумажном пакете">
-              <div class="floating-offer">
-                <div class="floating-offer__icon">🥐</div>
-                <div>
-                  <strong>Пакет выпечки</strong>
-                  <span>Забрать с 20:00</span>
-                </div>
-                <b>299 ₽</b>
-              </div>
-              <div class="floating-distance"><MapPin :size="15" /> 400 м от вас</div>
-            </div>
-            <div class="guest-hero__shape" aria-hidden="true" />
-          </div>
+  <section class="browse-page page-section page-section--compact">
+    <div class="container">
+      <div class="browse-heading">
+        <div>
+          <p class="eyebrow">Каталог</p>
+          <h1>Выберите что-нибудь хорошее</h1>
+          <p>Актуальные пакеты из мест рядом с вами.</p>
         </div>
-      </section>
+        <div class="browse-heading__art" aria-hidden="true"><span>🥐</span><span>🥬</span><span>🍣</span></div>
+      </div>
 
-      <section class="social-proof">
-        <div class="container social-proof__grid">
-          <div><strong>40–70%</strong><span>обычная скидка</span></div>
-          <div><strong>15 минут</strong><span>на удобный самовывоз</span></div>
-          <div><strong>1 пакет</strong><span>маленький полезный выбор</span></div>
-          <p>Демо-данные пет-проекта — чтобы проверить продуктовую идею и интерфейс.</p>
+      <div class="browse-toolbar card">
+        <div class="input-wrap browse-search">
+          <Search :size="19" />
+          <input v-model="query" class="input input--icon" type="search" placeholder="Кафе, блюдо или район...">
         </div>
-      </section>
+        <label class="browse-sort">
+          <ArrowDownUp :size="17" />
+          <select v-model="sort" aria-label="Сортировка">
+            <option value="distance">Сначала ближе</option>
+            <option value="price">Сначала дешевле</option>
+            <option value="rating">По рейтингу</option>
+          </select>
+        </label>
+        <button class="button button--secondary browse-filter-button" :class="{ active: showFilters }" type="button" @click="showFilters = !showFilters">
+          <SlidersHorizontal :size="18" /> Фильтры
+        </button>
+      </div>
 
-      <section class="page-section how-it-works">
-        <div class="container">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Три простых шага</p>
-              <h2>Забрать проще, чем выбрать ужин</h2>
-            </div>
-            <p class="how-it-works__intro">Места собирают хорошие остатки дня в сюрприз-пакеты — вы выбираете время и забираете.</p>
-          </div>
+      <div v-if="showFilters" class="browse-filter-panel card">
+        <label class="toggle-row">
+          <span><Truck :size="19" /><span><strong>Есть доставка</strong><small>Показывать места с демо-доставкой</small></span></span>
+          <input v-model="deliveryOnly" type="checkbox">
+          <i />
+        </label>
+        <button class="text-link" type="button" @click="clearFilters"><X :size="16" /> Сбросить всё</button>
+      </div>
 
-          <div class="steps-grid">
-            <article>
-              <span>01</span>
-              <div class="steps-grid__icon"><Search :size="24" /></div>
-              <h3>Найдите рядом</h3>
-              <p>Смотрите предложения на карте или выбирайте по категории и времени.</p>
-            </article>
-            <article>
-              <span>02</span>
-              <div class="steps-grid__icon"><PackageCheck :size="24" /></div>
-              <h3>Забронируйте</h3>
-              <p>Состав будет сюрпризом, зато цена, окно получения и место известны заранее.</p>
-            </article>
-            <article>
-              <span>03</span>
-              <div class="steps-grid__icon"><Sparkles :size="24" /></div>
-              <h3>Заберите и наслаждайтесь</h3>
-              <p>Покажите короткий код сотруднику в указанное время — и пакет ваш.</p>
-            </article>
-          </div>
-        </div>
-      </section>
+      <CategoryScroller v-model="selectedCategory" />
 
-      <section class="guest-offers page-section">
-        <div class="container">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Сегодня в Москве</p>
-              <h2>Посмотрите, что может быть рядом</h2>
-            </div>
-            <NuxtLink class="text-link" to="/browse">Весь каталог <ArrowRight :size="17" /></NuxtLink>
-          </div>
-          <div class="offer-grid">
-            <OfferCard v-for="offer in offers.slice(0, 3)" :key="offer.id" :offer="offer" />
-          </div>
-        </div>
-      </section>
+      <div class="browse-summary">
+        <p><strong>{{ filtered.length }}</strong> {{ filtered.length === 1 ? 'предложение' : 'предложений' }}</p>
+        <div v-if="deliveryOnly" class="chip chip--accent"><Truck :size="15" /> С доставкой</div>
+      </div>
 
-      <section class="guest-values page-section">
-        <div class="container guest-values__grid">
-          <div class="guest-values__visual">
-            <img src="/images/grocery-rescue.png" alt="Свежие овощи, фрукты и хлеб в сумке">
-            <div><Leaf :size="21" /> Хорошее получает ещё один шанс</div>
-          </div>
-          <div class="guest-values__copy">
-            <p class="eyebrow">Зачем это нужно</p>
-            <h2>Выгода для вас. Новый доход для мест рядом.</h2>
-            <p>Небольшая привычка помогает кафе и магазинам продавать приготовленное, а вам — открывать новые места без лишних трат.</p>
-            <ul>
-              <li><ShieldCheck :size="19" /><span><strong>Понятные условия</strong>Цена, время и адрес известны до бронирования.</span></li>
-              <li><Clock3 :size="19" /><span><strong>Только актуальные окна</strong>В каталоге показываются предложения, которые ещё можно забрать.</span></li>
-              <li><Leaf :size="19" /><span><strong>Измеримый результат</strong>В профиле видно спасённые пакеты и вашу экономию.</span></li>
-            </ul>
-            <NuxtLink class="button button--primary" to="/register">Начать бесплатно</NuxtLink>
-          </div>
-        </div>
-      </section>
+      <div v-if="filtered.length" class="offer-grid browse-grid">
+        <OfferCard v-for="offer in filtered" :key="offer.id" :offer="offer" />
+      </div>
 
-      <footer class="guest-footer">
-        <div class="container guest-footer__inner">
-          <AppLogo inverse />
-          <p>Пет-проект food rescue marketplace · 2026</p>
-          <div><NuxtLink to="/browse">Каталог</NuxtLink><NuxtLink to="/login">Войти</NuxtLink></div>
-        </div>
-      </footer>
-    </template>
-
-    <template v-else>
-      <section class="member-hero">
-        <div class="container member-hero__grid">
-          <div>
-            <p class="member-hero__date">Сегодня в Москве</p>
-            <h1>Привет, {{ user?.name?.split(' ')[0] }}!</h1>
-            <p>Что хорошего спасём сегодня?</p>
-          </div>
-          <NuxtLink class="location-card" to="/discover">
-            <span class="location-card__icon"><MapPin :size="20" /></span>
-            <span><small>Ищем рядом с</small><strong>Чистыми прудами</strong></span>
-            <ArrowRight :size="18" />
-          </NuxtLink>
-        </div>
-      </section>
-
-      <section class="container member-content">
-        <div class="member-search">
-          <Search :size="20" />
-          <input aria-label="Поиск" placeholder="Найти кафе, магазин или блюдо..." @focus="navigateTo('/browse')">
-          <NuxtLink class="button button--primary" to="/browse">Найти</NuxtLink>
-        </div>
-
-        <CategoryScroller v-model="selectedCategory" />
-
-        <div v-if="activeOrderOffer" class="active-order">
-          <div class="active-order__visual">
-            <img :src="activeOrderOffer.image" :alt="activeOrderOffer.title">
-          </div>
-          <div class="active-order__copy">
-            <span class="active-order__status"><i class="status-dot" /> Готовят ваш пакет</span>
-            <h3>{{ activeOrderOffer.merchant }}</h3>
-            <p><Clock3 :size="16" /> Заберите {{ demoOrder.eta }}</p>
-          </div>
-          <div class="active-order__code"><small>Код получения</small><strong>{{ demoOrder.code }}</strong></div>
-          <NuxtLink class="button button--accent" to="/delivery">Открыть заказ</NuxtLink>
-        </div>
-
-        <div class="section-heading member-offers-heading">
-          <div>
-            <p class="eyebrow">Подобрано для вас</p>
-            <h2>{{ selectedCategory === 'all' ? 'Успейте забрать сегодня' : categories.find(c => c.id === selectedCategory)?.label }}</h2>
-          </div>
-          <NuxtLink class="text-link" :to="`/browse?category=${selectedCategory}`">Показать всё <ArrowRight :size="17" /></NuxtLink>
-        </div>
-
-        <div class="offer-grid">
-          <OfferCard v-for="offer in recommended" :key="offer.id" :offer="offer" />
-        </div>
-
-        <ImpactCard class="member-impact" />
-      </section>
-    </template>
-  </div>
+      <div v-else class="browse-empty card">
+        <span>🔎</span>
+        <h2>Ничего не нашли</h2>
+        <p>Попробуйте другую категорию или очистите фильтры.</p>
+        <button class="button button--primary" type="button" @click="clearFilters">Сбросить фильтры</button>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped>
-.guest-hero {
-  position: relative;
-  overflow: hidden;
-  padding: 68px 0 80px;
-  background: linear-gradient(180deg, var(--cream-50), #f1efe6);
-}
-
-.guest-hero::before {
-  position: absolute;
-  top: -180px;
-  right: -130px;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  content: "";
-  background: var(--mint-200);
-  filter: blur(1px);
-  opacity: .56;
-}
-
-.guest-hero__grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1.02fr .98fr;
-  align-items: center;
-  gap: clamp(40px, 7vw, 100px);
-}
-
-.guest-hero__copy {
-  position: relative;
-  z-index: 2;
-}
-
-.guest-hero h1 span {
-  color: var(--coral-500);
-}
-
-.guest-hero__lead {
-  max-width: 580px;
-  margin-bottom: 28px;
-  color: var(--ink-700);
-  font-size: clamp(1.04rem, 2vw, 1.25rem);
-  line-height: 1.65;
-}
-
-.guest-hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.guest-hero__trust {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 20px;
-  margin-top: 26px;
-  color: var(--ink-700);
-  font-size: .78rem;
-  font-weight: 720;
-}
-
-.guest-hero__trust span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.guest-hero__trust svg {
-  color: var(--success);
-}
-
-.guest-hero__visual {
-  position: relative;
-  min-height: 520px;
-}
-
-.guest-hero__image-wrap {
-  position: absolute;
-  z-index: 2;
-  inset: 0 0 0 8%;
-  overflow: hidden;
-  border: 9px solid rgba(255,255,255,.82);
-  border-radius: 48% 48% 28px 28px;
-  box-shadow: var(--shadow-lg);
-}
-
-.guest-hero__image-wrap > img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.guest-hero__shape {
-  position: absolute;
-  right: -34px;
-  bottom: -35px;
-  width: 190px;
-  height: 190px;
-  border: 25px solid var(--lime-300);
-  border-radius: 50%;
-}
-
-.floating-offer {
-  position: absolute;
-  right: 18px;
-  bottom: 20px;
-  left: 18px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid rgba(255,255,255,.58);
-  border-radius: 18px;
-  background: rgba(255,255,255,.91);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(14px);
-}
-
-.floating-offer__icon {
-  display: grid;
-  width: 45px;
-  height: 45px;
-  place-items: center;
-  border-radius: 14px;
-  background: var(--cream-100);
-  font-size: 1.35rem;
-}
-
-.floating-offer strong,
-.floating-offer span { display: block; }
-.floating-offer span { margin-top: 4px; color: var(--ink-700); font-size: .72rem; }
-.floating-offer b { color: var(--forest-900); font-size: 1.1rem; }
-
-.floating-distance {
-  position: absolute;
-  top: 28px;
-  left: 50%;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  color: var(--forest-900);
-  background: rgba(255,255,255,.9);
-  font-size: .76rem;
-  font-weight: 850;
-  backdrop-filter: blur(12px);
-  transform: translateX(-50%);
-}
-
-.social-proof {
-  color: var(--white);
-  background: var(--forest-900);
-}
-
-.social-proof__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr) 1.7fr;
-  align-items: center;
-  gap: 28px;
-  min-height: 118px;
-}
-
-.social-proof__grid > div { display: grid; gap: 4px; }
-.social-proof__grid strong { color: var(--lime-300); font-size: 1.35rem; }
-.social-proof__grid span { color: rgba(255,255,255,.64); font-size: .76rem; }
-.social-proof__grid p { margin: 0; color: rgba(255,255,255,.58); font-size: .76rem; line-height: 1.55; }
-
-.how-it-works__intro {
-  max-width: 440px;
-  margin-bottom: 4px;
-  color: var(--ink-700);
-  line-height: 1.65;
-}
-
-.steps-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-
-.steps-grid article {
-  position: relative;
-  min-height: 250px;
-  padding: 28px;
-  overflow: hidden;
-  border: 1px solid var(--sand-200);
-  border-radius: 24px;
-  background: var(--white);
-}
-
-.steps-grid article > span {
-  position: absolute;
-  top: 6px;
-  right: 16px;
-  color: var(--cream-100);
-  font-size: 4.6rem;
-  font-weight: 950;
-  letter-spacing: -.08em;
-}
-
-.steps-grid__icon {
-  position: relative;
-  display: grid;
-  width: 50px;
-  height: 50px;
-  margin-bottom: 35px;
-  place-items: center;
-  border-radius: 16px;
-  color: var(--forest-950);
-  background: var(--lime-300);
-}
-
-.steps-grid p { margin: 0; color: var(--ink-700); font-size: .9rem; line-height: 1.65; }
-
-.guest-offers { background: var(--cream-100); }
-
-.guest-values__grid {
-  display: grid;
-  grid-template-columns: .98fr 1.02fr;
-  align-items: center;
-  gap: clamp(40px, 8vw, 110px);
-}
-
-.guest-values__visual {
-  position: relative;
-  height: 500px;
-}
-
-.guest-values__visual img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 30px 30px 50% 30px;
-}
-
-.guest-values__visual div {
-  position: absolute;
-  right: -22px;
-  bottom: 28px;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 14px 18px;
-  border-radius: 999px;
-  color: var(--forest-950);
-  background: var(--lime-300);
-  box-shadow: var(--shadow-md);
-  font-size: .82rem;
-  font-weight: 900;
-}
-
-.guest-values__copy > p:not(.eyebrow) { color: var(--ink-700); line-height: 1.7; }
-.guest-values__copy ul { display: grid; gap: 18px; margin: 28px 0; padding: 0; list-style: none; }
-.guest-values__copy li { display: flex; align-items: flex-start; gap: 12px; }
-.guest-values__copy li > svg { flex: 0 0 auto; margin-top: 2px; color: var(--coral-500); }
-.guest-values__copy li span { display: grid; gap: 3px; color: var(--ink-700); font-size: .88rem; line-height: 1.5; }
-.guest-values__copy li strong { color: var(--ink-950); }
-
-.guest-footer { padding: 38px 0; color: var(--white); background: var(--forest-950); }
-.guest-footer__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.guest-footer p { margin: 0; color: rgba(255,255,255,.52); font-size: .77rem; }
-.guest-footer__inner > div { display: flex; gap: 22px; color: rgba(255,255,255,.74); font-size: .82rem; font-weight: 750; }
-
-.member-hero {
-  padding: 40px 0 84px;
-  color: var(--white);
-  background: var(--forest-900);
-  background-image: radial-gradient(circle at 80% -40%, rgba(221,244,100,.28), transparent 38%);
-}
-
-.member-hero__grid { display: flex; align-items: center; justify-content: space-between; gap: 30px; }
-.member-hero__date { margin-bottom: 8px; color: var(--mint-300); font-size: .8rem; font-weight: 800; }
-.member-hero h1 { margin-bottom: 9px; font-size: clamp(2.2rem, 5vw, 4.2rem); }
-.member-hero h1 + p { margin: 0; color: rgba(255,255,255,.68); font-size: 1.05rem; }
-
-.location-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  min-width: 310px;
-  padding: 14px;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 18px;
-  background: rgba(255,255,255,.08);
-}
-.location-card__icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 14px; color: var(--forest-950); background: var(--lime-300); }
-.location-card small, .location-card strong { display: block; }
-.location-card small { margin-bottom: 3px; color: rgba(255,255,255,.55); font-size: .7rem; }
-.location-card strong { font-size: .9rem; }
-
-.member-content { position: relative; margin-top: -40px; padding-bottom: 90px; }
-.member-search {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  padding: 9px 9px 9px 19px;
-  border-radius: 20px;
-  background: var(--white);
-  box-shadow: var(--shadow-md);
-}
-.member-search > svg { color: var(--ink-500); }
-.member-search input { height: 46px; border: 0; outline: 0; color: var(--ink-950); background: transparent; }
-.member-search .button { min-height: 46px; }
-
-.active-order {
-  display: grid;
-  grid-template-columns: 92px 1fr auto auto;
-  align-items: center;
-  gap: 18px;
-  margin: 32px 0 52px;
-  padding: 14px 16px 14px 14px;
-  border: 1px solid var(--sand-200);
-  border-radius: 22px;
-  background: var(--white);
-  box-shadow: var(--shadow-sm);
-}
-.active-order__visual { width: 92px; height: 82px; overflow: hidden; border-radius: 15px; }
-.active-order__visual img { width: 100%; height: 100%; object-fit: cover; }
-.active-order__status { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; color: var(--success); font-size: .72rem; font-weight: 850; text-transform: uppercase; }
-.active-order h3 { margin-bottom: 7px; }
-.active-order__copy p { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ink-700); font-size: .8rem; }
-.active-order__code { display: grid; min-width: 105px; justify-items: center; gap: 4px; padding: 10px 16px; border-right: 1px solid var(--sand-200); border-left: 1px solid var(--sand-200); }
-.active-order__code small { color: var(--ink-500); font-size: .67rem; }
-.active-order__code strong { color: var(--forest-900); font-size: 1.5rem; letter-spacing: .13em; }
-
-.member-offers-heading { margin-top: 44px; }
-.member-impact { margin-top: 62px; }
-
-@media (max-width: 960px) {
-  .guest-hero__grid, .guest-values__grid { grid-template-columns: 1fr 1fr; gap: 38px; }
-  .guest-hero__visual { min-height: 430px; }
-  .social-proof__grid { grid-template-columns: repeat(3, 1fr); }
-  .social-proof__grid p { display: none; }
-  .active-order { grid-template-columns: 82px 1fr auto; }
-  .active-order__code { display: none; }
-}
-
-@media (max-width: 720px) {
-  .guest-hero { padding: 42px 0 58px; }
-  .guest-hero__grid, .guest-values__grid { grid-template-columns: 1fr; }
-  .guest-hero__visual { min-height: 400px; }
-  .guest-hero__image-wrap { inset: 0; border-radius: 28px 28px 42% 28px; }
-  .floating-distance { top: 22px; left: 22px; transform: none; }
-  .guest-hero__shape { right: -20px; }
-  .social-proof__grid { grid-template-columns: repeat(3, 1fr); min-height: 96px; gap: 10px; }
-  .social-proof__grid strong { font-size: 1rem; }
-  .social-proof__grid span { font-size: .6rem; }
-  .steps-grid { grid-template-columns: 1fr; }
-  .steps-grid article { min-height: 215px; }
-  .guest-values__visual { height: 360px; }
-  .guest-values__visual div { right: 8px; bottom: 12px; }
-  .guest-footer__inner { flex-wrap: wrap; }
-  .guest-footer p { order: 3; width: 100%; }
-  .member-hero { padding: 28px 0 76px; }
-  .member-hero__grid { display: block; }
-  .location-card { min-width: 0; margin-top: 22px; }
-  .member-search { grid-template-columns: auto 1fr; padding-right: 16px; }
-  .member-search .button { display: none; }
-  .active-order { grid-template-columns: 72px 1fr; }
-  .active-order__visual { width: 72px; height: 72px; }
-  .active-order > .button { grid-column: 1 / -1; }
-}
-
-@media (max-width: 420px) {
-  .guest-hero__actions .button { width: 100%; }
-  .floating-offer { grid-template-columns: auto 1fr; }
-  .floating-offer b { display: none; }
-}
+.browse-heading { display: flex; min-height: 210px; align-items: center; justify-content: space-between; gap: 35px; margin-bottom: 28px; padding: 35px 42px; overflow: hidden; border-radius: 30px; color: var(--white); background: var(--forest-900); background-image: radial-gradient(circle at 80% 20%, rgba(221,244,100,.25), transparent 35%); }
+.browse-heading h1 { max-width: 750px; margin-bottom: 12px; font-size: clamp(2.25rem, 5vw, 4.3rem); }
+.browse-heading p:last-child { margin: 0; color: rgba(255,255,255,.65); }
+.browse-heading .eyebrow { color: var(--mint-300); }
+.browse-heading__art { position: relative; display: grid; width: 190px; height: 140px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; background: rgba(255,255,255,.07); }
+.browse-heading__art span { position: absolute; display: grid; width: 62px; height: 62px; place-items: center; border-radius: 20px; background: var(--white); box-shadow: var(--shadow-md); font-size: 1.7rem; transform: rotate(-8deg); }
+.browse-heading__art span:nth-child(1) { top: -5px; left: 15px; }
+.browse-heading__art span:nth-child(2) { right: 8px; bottom: -4px; transform: rotate(9deg); }
+.browse-heading__art span:nth-child(3) { right: 6px; top: -16px; width: 52px; height: 52px; font-size: 1.35rem; transform: rotate(7deg); }
+.browse-toolbar { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; margin-bottom: 16px; padding: 10px; }
+.browse-search .input { border-color: transparent; background: var(--cream-50); }
+.browse-sort { display: flex; min-height: 52px; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid var(--sand-200); border-radius: 15px; color: var(--ink-700); }
+.browse-sort select { border: 0; color: var(--forest-900); background: transparent; outline: 0; font-weight: 800; }
+.browse-filter-button { border-radius: 15px; }
+.browse-filter-button.active { color: var(--white); background: var(--forest-900); box-shadow: none; }
+.browse-filter-panel { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 16px; padding: 16px 18px; }
+.toggle-row { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.toggle-row > span { display: flex; align-items: center; gap: 11px; }
+.toggle-row > span > svg { color: var(--coral-500); }
+.toggle-row > span span { display: grid; gap: 2px; }
+.toggle-row small { color: var(--ink-500); font-size: .7rem; }
+.toggle-row input { position: absolute; opacity: 0; }
+.toggle-row i { position: relative; width: 46px; height: 26px; border-radius: 999px; background: var(--sand-200); transition: background 160ms ease; }
+.toggle-row i::after { position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; border-radius: 50%; content: ""; background: var(--white); box-shadow: 0 2px 5px rgba(0,0,0,.12); transition: transform 160ms ease; }
+.toggle-row input:checked + i { background: var(--forest-700); }
+.toggle-row input:checked + i::after { transform: translateX(20px); }
+.browse-filter-panel .text-link { border: 0; background: transparent; cursor: pointer; }
+.browse-summary { display: flex; min-height: 65px; align-items: center; justify-content: space-between; gap: 14px; }
+.browse-summary p { margin: 0; color: var(--ink-700); font-size: .87rem; }
+.browse-summary strong { color: var(--ink-950); }
+.browse-grid { margin-bottom: 35px; }
+.browse-empty { display: grid; justify-items: center; padding: 70px 24px; text-align: center; }
+.browse-empty > span { font-size: 2.5rem; }
+.browse-empty h2 { margin: 14px 0 8px; }
+.browse-empty p { margin-bottom: 22px; color: var(--ink-700); }
+@media (max-width: 760px) { .browse-heading { min-height: 180px; padding: 28px 24px; } .browse-heading__art { display: none; } .browse-toolbar { grid-template-columns: 1fr auto; } .browse-sort { grid-row: 2; grid-column: 1 / -1; } .browse-filter-button { width: 52px; padding: 0; font-size: 0; } .browse-filter-panel { align-items: flex-start; } .toggle-row { align-items: flex-start; } .toggle-row > span span small { display: none; } }
 </style>

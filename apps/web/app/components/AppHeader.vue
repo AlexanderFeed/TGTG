@@ -3,11 +3,12 @@ import { ChevronDown, Heart, MapPin, UserRound } from 'lucide-vue-next'
 
 const route = useRoute()
 const { user, isAuthenticated } = useAuth()
+const { locationLabel } = useBrowserLocation()
 
 const links = [
-  { label: 'Главная', to: '/' },
+  { label: 'О нас', to: '/browse' },
   { label: 'Рядом', to: '/discover' },
-  { label: 'Каталог', to: '/browse' },
+  { label: 'Каталог', to: '/' },
   { label: 'Получение', to: '/delivery' },
 ]
 
@@ -19,7 +20,7 @@ const isActive = (to: string) => to === '/' ? route.path === '/' : route.path.st
     <div class="container header__inner">
       <AppLogo />
 
-      <nav v-if="isAuthenticated" class="header__nav" aria-label="Основная навигация">
+      <nav class="header__nav" aria-label="Основная навигация">
         <NuxtLink
           v-for="link in links"
           :key="link.to"
@@ -32,9 +33,9 @@ const isActive = (to: string) => to === '/' ? route.path === '/' : route.path.st
       </nav>
 
       <div class="header__actions">
-        <NuxtLink v-if="isAuthenticated" class="location-pill" to="/discover">
+        <NuxtLink class="location-pill" to="/discover">
           <MapPin :size="16" />
-          <span>{{ user?.city || 'Москва' }}</span>
+          <span>{{ user?.city || locationLabel }}</span>
           <ChevronDown :size="14" />
         </NuxtLink>
 

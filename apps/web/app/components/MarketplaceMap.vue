@@ -5,10 +5,12 @@ import type { Offer } from '~/types/marketplace'
 defineProps<{
   offers: Offer[]
   activeId?: string
+  hasUserLocation?: boolean
 }>()
 
 const emit = defineEmits<{
   select: [id: string]
+  locate: []
 }>()
 </script>
 
@@ -42,10 +44,10 @@ const emit = defineEmits<{
       <button type="button" aria-label="Приблизить"><Plus :size="18" /></button>
       <button type="button" aria-label="Отдалить"><Minus :size="18" /></button>
     </div>
-    <button class="market-map__locate" type="button" aria-label="Моё местоположение">
+    <button class="market-map__locate" type="button" aria-label="Определить моё местоположение" @click="emit('locate')">
       <LocateFixed :size="20" />
     </button>
-    <div class="market-map__me"><Navigation :size="14" fill="currentColor" /></div>
+    <div v-if="hasUserLocation" class="market-map__me"><Navigation :size="14" fill="currentColor" /></div>
   </div>
 </template>
 

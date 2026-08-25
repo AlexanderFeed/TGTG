@@ -1,5 +1,9 @@
 import { offers } from '~/data/marketplace'
 
+// Unlike useAuth, this composable does not call Go yet. It reads static mock
+// offers from app/data/marketplace.ts and stores favorite IDs in a normal
+// browser-readable cookie. Connecting the catalogue to GET /api/v1/offers is a
+// future integration step recorded in PLAN.md.
 export const useMarketplace = () => {
   const favoriteIds = useCookie<string[]>('eshche-est-favorites', {
     default: () => [],

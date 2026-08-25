@@ -22,8 +22,12 @@ export default defineNuxtConfig({
     },
   },
   runtimeConfig: {
+    // Private server-only value used by server/api/[...path].ts. In Docker it can
+    // be overridden with NUXT_API_INTERNAL_URL=http://api:8080. Do not move it to
+    // `public`, because browsers cannot resolve the Docker service name `api`.
     apiInternalUrl: 'http://127.0.0.1:8080',
     public: {
+      // Values under public are intentionally serialized into browser JavaScript.
       appName: 'ЕщёЕсть',
     },
   },

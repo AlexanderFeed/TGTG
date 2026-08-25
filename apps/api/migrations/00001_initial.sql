@@ -1,4 +1,10 @@
 -- +goose Up
+-- "Up" describes how to create this schema. Goose runs it once and records
+-- version 1 in goose_db_version. Future schema changes should go in a new
+-- numbered migration instead of editing a migration already used on a server.
+
+-- Registered identities. Authentication secrets are intentionally held in
+-- separate challenge/session tables, not in this public profile record.
 CREATE TABLE users (
     id uuid PRIMARY KEY,
     email text NOT NULL,
@@ -17,6 +23,8 @@ CREATE TABLE users (
 
 CREATE UNIQUE INDEX users_email_unique ON users (email);
 
+-- Temporary one-time email codes. code_hash stores a hash, never the six-digit
+-- plaintext. consumed_at makes a successfully used code unusable afterwards.
 CREATE TABLE email_challenges (
     id uuid PRIMARY KEY,
     email text NOT NULL,
@@ -36,6 +44,8 @@ CREATE TABLE email_challenges (
 CREATE INDEX email_challenges_lookup_idx
     ON email_challenges (email, purpose, created_at DESC);
 
+-- Server-side sessions. The browser owns the raw token in an HttpOnly cookie;
+-- PostgreSQL stores only token_hash and its lifetime/revocation state.
 CREATE TABLE user_sessions (
     id uuid PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -48,6 +58,8 @@ CREATE TABLE user_sessions (
 CREATE UNIQUE INDEX user_sessions_token_unique ON user_sessions (token_hash);
 CREATE INDEX user_sessions_user_idx ON user_sessions (user_id, created_at DESC);
 
+-- Marketplace rescue listings. Prices are integer kopecks rather than floating
+-- point rubles, avoiding rounding errors (29900 means 299.00 RUB).
 CREATE TABLE offers (
     id uuid PRIMARY KEY,
     title text NOT NULL,
@@ -84,6 +96,7 @@ CREATE TABLE offers (
 CREATE INDEX offers_public_list_idx ON offers (status, created_at DESC);
 CREATE INDEX offers_category_idx ON offers (category) WHERE status = 'active';
 
+-- Seed data makes the catalog useful immediately in a fresh pet-project DB.
 INSERT INTO offers (
     id, title, merchant, category, description, contents, image_url,
     price_kopecks, original_price_kopecks, pickup_start, pickup_end,
@@ -94,6 +107,8 @@ INSERT INTO offers (
     ('33333333-3333-4333-8333-333333333333', 'Овощи и фрукты', 'Рядом маркет', 'Продукты', 'Набор хороших продуктов с коротким сроком реализации.', 'Сезонные овощи и фрукты.', '/images/grocery-rescue.png', 39900, 99000, now() + interval '5 hours', now() + interval '9 hours', 7, 'Садовая-Каретная ул., 8', 'Тверской', 55.7712, 37.6084, true, 'active');
 
 -- +goose Down
+-- "Down" reverses this migration for development rollback. Drop child tables
+-- before parent tables because sessions/offers reference users with foreign keys.
 DROP TABLE IF EXISTS offers;
 DROP TABLE IF EXISTS user_sessions;
 DROP TABLE IF EXISTS email_challenges;

@@ -2,6 +2,9 @@
 import { ArrowLeft, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-vue-next'
 
 const { requestLoginCode, verifyLoginCode, errorMessage, isAuthenticated } = useAuth()
+
+// This page is a two-step state machine. `email` shows the first form; after Go
+// creates a challenge, `code` shows the verification form for that challenge.
 const step = ref<'email' | 'code'>('email')
 const email = ref('')
 const code = ref('')
@@ -14,6 +17,8 @@ if (isAuthenticated.value) {
   await navigateTo('/')
 }
 
+// Vue calls this because the template uses @submit.prevent="requestCode".
+// `.prevent` stops the browser's normal full-page form submission.
 const requestCode = async () => {
   error.value = ''
   if (!email.value.trim() || !email.value.includes('@')) {
@@ -22,6 +27,7 @@ const requestCode = async () => {
   }
   isSubmitting.value = true
   try {
+    // useAuth -> Nuxt /api proxy -> Go requestLogin handler -> PostgreSQL/mailer.
     const response = await requestLoginCode(email.value)
     challengeId.value = response.challengeId
     devCode.value = response.devCode || ''
@@ -34,6 +40,8 @@ const requestCode = async () => {
   }
 }
 
+// The second request combines the challenge ID, same email, and code. On
+// success Go sets the HttpOnly cookie and useAuth stores the returned user.
 const verifyCode = async () => {
   error.value = ''
   if (!/^\d{6}$/.test(code.value)) {

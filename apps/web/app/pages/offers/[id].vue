@@ -35,7 +35,7 @@ useSeoMeta({
 <template>
   <section v-if="offer" class="offer-page page-section page-section--compact">
     <div class="container">
-      <NuxtLink class="offer-page__back" to="/browse"><ArrowLeft :size="18" /> Вернуться к предложениям</NuxtLink>
+      <NuxtLink class="offer-page__back" to="/"><ArrowLeft :size="18" /> Вернуться к предложениям</NuxtLink>
 
       <div class="offer-detail">
         <div class="offer-gallery">
@@ -90,7 +90,7 @@ useSeoMeta({
       </section>
 
       <section class="related-offers">
-        <div class="section-heading"><div><p class="eyebrow">Ещё рядом</p><h2>Возможно, вам понравится</h2></div><NuxtLink class="text-link" to="/browse">Весь каталог <ChevronRight :size="17" /></NuxtLink></div>
+        <div class="section-heading"><div><p class="eyebrow">Ещё рядом</p><h2>Возможно, вам понравится</h2></div><NuxtLink class="text-link" to="/">Весь каталог <ChevronRight :size="17" /></NuxtLink></div>
         <div class="offer-grid"><OfferCard v-for="item in related" :key="item.id" :offer="item" /></div>
       </section>
     </div>

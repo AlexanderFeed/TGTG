@@ -1,8 +1,8 @@
 # Food Rescue Marketplace for Russia — Product and Engineering Plan
 
-> Living plan shared by the founder/product owner and Codex.  
-> Last reviewed: 2026-08-21  
-> Status: Customer frontend prototype implemented; backend not started  
+> Living plan shared by the founder/product owner and Codex.
+> Last reviewed: 2026-08-25
+> Status: Customer frontend prototype and initial Go/PostgreSQL backend implemented; catalog integration next
 > Working product name: ЕщёЕсть (provisional)
 
 ## Quick navigation
@@ -116,7 +116,7 @@ Overall rating: **9/10**, assuming the team is comfortable with Go.
 
 If a solo developer is new to Go, full-stack Nuxt could deliver an experiment faster. The selected split is preferable when Go skills are available or the system is intended to become a serious marketplace.
 
-### Current pet-project implementation — 2026-08-21
+### Current pet-project implementation — 2026-08-24
 
 The first customer-web prototype now exists in `apps/web`. Legal and production-provider decisions are deferred while the project remains a local pet project; the corresponding gates in this plan still apply before accepting real users, personal data, or payments.
 
@@ -126,7 +126,7 @@ Implemented routes and states:
 - `/login` — passwordless two-step email-code flow backed by PostgreSQL sessions.
 - `/register` — name/email registration with six-digit email verification.
 - `/discover` — nearby discovery with a responsive illustrative map/list view, radius and category controls.
-- `/browse` — searchable, sortable, filterable offer catalog.
+- `/` — searchable, sortable, filterable offer catalog.
 - `/offers/[id]` — offer detail and reservation interaction prototype.
 - `/delivery` — authenticated order/pickup screen plus a clearly marked future delivery concept; courier logistics remain outside MVP scope.
 - `/profile` — authenticated profile, impact, favorites, notifications, and logout.
@@ -142,12 +142,14 @@ Current technical boundaries:
 - Nuxt proxies `/api/*` to the Go service so browsers never need a separate API origin or public API port.
 - `compose.local.yaml` provides a one-command local PostgreSQL/API/Nuxt environment with persistent database storage and UI-visible development email codes.
 - `STARTUP.md` documents fully local, SSH-tunnel-to-VPS-database, and complete VPS startup modes.
+- `BACKEND_WALKTHROUGH.md` and in-code learning comments trace frontend entry points, Go packages, middleware, authentication, transactions, sessions, SMTP, and PostgreSQL for a beginner.
+- Header/mobile navigation and product discovery are visible without an account; browser geolocation permission is independent of authentication, while reservation/order actions require login.
 - `npm run typecheck` and `npm run build` pass.
 
 Next frontend integration work:
 
 1. Replace the offer, favorite, reservation, and order mock repositories behind composables using the new OpenAPI boundary.
-2. Connect a sandbox map/geocoding provider and real device geolocation.
+2. Connect a sandbox map/geocoding provider and use the captured browser coordinates for real distance calculations and map positioning.
 3. Add component and end-to-end tests for guest, auth, browse, favorite, reservation, and pickup journeys.
 4. Add loading, empty, offline, API-error, email-code throttling, and expired-offer states.
 5. Add the PWA manifest/service worker after the core API boundary is stable.
@@ -1539,6 +1541,7 @@ Budget alerts should exist for SMS, maps, hosting, and notification providers be
 | 2026-08-21 | Use online prepayment | Tentative | Reduces weak reservations; legal/payment model remains a gate |
 | 2026-08-21 | Evaluate ЮKassa and Yandex Maps first | Proposed | Russia-oriented product capabilities; commercial review required |
 | 2026-08-21 | Use passwordless email verification instead of phone/SMS OTP for the pet project | Accepted | Avoids SMS integration while providing real ownership verification through SMTP |
+| 2026-08-25 | Keep product browsing and geolocation public; require authentication at reservation/order boundaries | Accepted | Guests should evaluate nearby supply before deciding to register |
 
 ## 31. Open decisions
 
@@ -1598,6 +1601,8 @@ Russia-specific legal and official guidance:
 
 | Date | Change |
 |---|---|
+| 2026-08-25 | Made desktop/mobile navigation public, added guest-accessible browser geolocation with permission/error states, and kept reservation plus private profile/order data behind authentication |
+| 2026-08-24 | Added learning-oriented comments throughout the Go backend and relevant Nuxt entry points, plus a beginner walkthrough of request flow, package communication, authentication, transactions, sessions, migrations, and debugging |
 | 2026-08-21 | Added a persistent local PostgreSQL Compose environment, development email-code flow, and database inspection/storage guide |
 | 2026-08-21 | Added the Go/PostgreSQL backend, embedded migration and seed, email registration/login, secure sessions, profile API, offer CRUD, OpenAPI contract, Nuxt API proxy, and combined VPS Compose deployment |
 | 2026-08-21 | Added a production Nuxt Docker image, Compose service, health check, and VPS deployment/rollback guide for the customer frontend |

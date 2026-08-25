@@ -2,6 +2,12 @@
 
 Nuxt 4 / Vue 3 customer frontend for a Russian food-rescue marketplace. Email authentication and profile edits use the Go/PostgreSQL backend through a same-origin Nuxt proxy. Offers, favorites, reservations, orders, and payments still use prototype data/state.
 
+Guests can use the main navigation, browse offers, open offer details, and grant
+browser geolocation permission. Authentication is requested when they try to
+reserve an offer or open private profile/order data. Geolocation works on
+`localhost` or HTTPS; the current illustrative map does not yet calculate real
+distances from the captured coordinates.
+
 ## Run locally
 
 Requirements: Node.js 22+, npm, and the API from `apps/api` on port 8080.
@@ -19,7 +25,7 @@ Open `http://localhost:3000`.
 - Login: `/login` — request and verify a six-digit email code
 - Registration: `/register` — verify email, create the PostgreSQL user, and start a session
 - Nearby map/list: `/discover`
-- Browse and filters: `/browse`
+- Browse and filters: `/`
 - Offer detail and reservation prototype: `/offers/bakery-evening`
 - Pickup order and future delivery concept: `/delivery`
 - Profile and favorites: `/profile`

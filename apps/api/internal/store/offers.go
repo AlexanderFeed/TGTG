@@ -1,21 +1,30 @@
 package store
 
+// This file is the offers persistence layer. It contains parameterized SQL and
+// converts database rows into Offer values; HTTP details stay in httpapi.
+
 import (
 	"context"
 	"database/sql"
 	"errors"
 )
 
+// offerColumns gives SELECT and RETURNING exactly the same column order. That
+// order must match scanOffer below or values would be scanned into wrong fields.
 const offerColumns = `
 	id, title, merchant, category, description, contents, image_url,
 	price_kopecks, original_price_kopecks, pickup_start, pickup_end,
 	quantity, address, district, latitude, longitude, delivery, status,
 	created_by, created_at, updated_at`
 
+// rowScanner is a tiny interface satisfied by both *sql.Row and *sql.Rows.
+// It lets one scanOffer helper work for a single-row query and a list query.
 type rowScanner interface {
 	Scan(dest ...any) error
 }
 
+// scanOffer translates one SQL row into an Offer. Nullable database columns use
+// sql.Null* during scanning, then become pointers/zero values in normal Go data.
 func scanOffer(row rowScanner) (Offer, error) {
 	var offer Offer
 	var latitude, longitude sql.NullFloat64
@@ -40,6 +49,7 @@ func scanOffer(row rowScanner) (Offer, error) {
 	return offer, err
 }
 
+// ListOffers returns active offers matching optional text/category filters.
 func (s *Store) ListOffers(ctx context.Context, filter OfferFilter) ([]Offer, error) {
 	filter.Query = normalizeSearch(filter.Query)
 	filter.Category = normalizeSearch(filter.Category)
@@ -49,6 +59,8 @@ func (s *Store) ListOffers(ctx context.Context, filter OfferFilter) ([]Offer, er
 	if filter.Offset < 0 {
 		filter.Offset = 0
 	}
+	// $1...$4 are PostgreSQL parameters. Passing their values separately from
+	// the SQL text prevents user input from becoming executable SQL.
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT `+offerColumns+`
 		FROM offers
@@ -60,9 +72,11 @@ func (s *Store) ListOffers(ctx context.Context, filter OfferFilter) ([]Offer, er
 	if err != nil {
 		return nil, err
 	}
+	// Always return the connection to the pool, including on an early error.
 	defer rows.Close()
 
 	offers := make([]Offer, 0)
+	// QueryContext returns a cursor. Next advances one row at a time.
 	for rows.Next() {
 		offer, err := scanOffer(rows)
 		if err != nil {
@@ -73,6 +87,8 @@ func (s *Store) ListOffers(ctx context.Context, filter OfferFilter) ([]Offer, er
 	return offers, rows.Err()
 }
 
+// OfferByID loads one non-deleted offer. It converts database/sql's generic
+// sql.ErrNoRows into the store package's domain-level ErrNotFound.
 func (s *Store) OfferByID(ctx context.Context, id string) (Offer, error) {
 	offer, err := scanOffer(s.db.QueryRowContext(ctx, `
 		SELECT `+offerColumns+`
@@ -84,6 +100,8 @@ func (s *Store) OfferByID(ctx context.Context, id string) (Offer, error) {
 	return offer, err
 }
 
+// CreateOffer inserts an offer and uses RETURNING to retrieve database defaults
+// such as created_at without a second round trip.
 func (s *Store) CreateOffer(ctx context.Context, offer Offer) (Offer, error) {
 	return scanOffer(s.db.QueryRowContext(ctx, `
 		INSERT INTO offers (
@@ -101,6 +119,7 @@ func (s *Store) CreateOffer(ctx context.Context, offer Offer) (Offer, error) {
 		offer.Latitude, offer.Longitude, offer.Delivery, offer.Status, offer.CreatedBy))
 }
 
+// UpdateOffer changes editable fields while preserving ID/creator/created_at.
 func (s *Store) UpdateOffer(ctx context.Context, offer Offer) (Offer, error) {
 	updated, err := scanOffer(s.db.QueryRowContext(ctx, `
 		UPDATE offers SET
@@ -121,6 +140,8 @@ func (s *Store) UpdateOffer(ctx context.Context, offer Offer) (Offer, error) {
 	return updated, err
 }
 
+// DeleteOffer is a soft delete. Existing references can remain valid in the
+// database while public queries hide rows whose status is "deleted".
 func (s *Store) DeleteOffer(ctx context.Context, id string) error {
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE offers SET status = 'deleted', updated_at = now()

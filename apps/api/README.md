@@ -11,6 +11,11 @@ Go modular-monolith API for the pet-project backend. It currently provides:
 
 The authoritative initial contract is [`api/openapi.yaml`](api/openapi.yaml).
 
+If you are learning Go, start with the repository-level
+[`BACKEND_WALKTHROUGH.md`](../../BACKEND_WALKTHROUGH.md). It traces registration,
+sessions, profile updates, and SQL from the Vue form through Nuxt and Go to
+PostgreSQL, and explains the Go concepts used in each layer.
+
 ## Local run
 
 The easiest option is the repository's complete local Docker stack. See

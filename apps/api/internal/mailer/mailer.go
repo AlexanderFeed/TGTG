@@ -1,5 +1,9 @@
 package mailer
 
+// Package mailer isolates email delivery from HTTP/authentication logic. The
+// API uses the Sender interface, so local development can skip SMTP while
+// production sends the same verification code through a real mail server.
+
 import (
 	"context"
 	"crypto/tls"
@@ -12,16 +16,23 @@ import (
 	"time"
 )
 
+// Sender is the dependency required by auth handlers. context.Context lets an
+// email attempt stop if the request is cancelled or reaches its timeout.
 type Sender interface {
 	SendVerificationCode(ctx context.Context, recipient, code, purpose string) error
 }
 
+// DevelopmentSender intentionally sends nothing. In development the HTTP API
+// can return devCode when EXPOSE_DEV_CODES=true, enabling local auth tests with
+// no SMTP account.
 type DevelopmentSender struct{}
 
 func (DevelopmentSender) SendVerificationCode(context.Context, string, string, string) error {
 	return nil
 }
 
+// SMTPSender stores validated SMTP connection details. Fields are private so
+// callers must construct it through NewSMTP.
 type SMTPSender struct {
 	host     string
 	port     string
@@ -31,6 +42,8 @@ type SMTPSender struct {
 	timeout  time.Duration
 }
 
+// NewSMTP parses the From address at startup rather than failing later during a
+// user's registration request.
 func NewSMTP(host, port, username, password, from string) (*SMTPSender, error) {
 	parsedFrom, err := mail.ParseAddress(from)
 	if err != nil {
@@ -42,12 +55,16 @@ func NewSMTP(host, port, username, password, from string) (*SMTPSender, error) {
 	}, nil
 }
 
+// SendVerificationCode opens one SMTP connection, upgrades it with STARTTLS,
+// optionally authenticates, and sends a UTF-8 plain-text message.
 func (s *SMTPSender) SendVerificationCode(ctx context.Context, recipient, code, purpose string) error {
 	to, err := mail.ParseAddress(recipient)
 	if err != nil {
 		return fmt.Errorf("parse recipient: %w", err)
 	}
 	address := net.JoinHostPort(s.host, s.port)
+	// DialContext applies both the request cancellation and our connection
+	// timeout. SetDeadline below also bounds later reads/writes on this socket.
 	conn, err := (&net.Dialer{Timeout: s.timeout}).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("connect smtp: %w", err)
@@ -61,6 +78,7 @@ func (s *SMTPSender) SendVerificationCode(ctx context.Context, recipient, code, 
 	}
 	defer client.Close()
 
+	// This implementation deliberately refuses plaintext SMTP credentials/code.
 	if ok, _ := client.Extension("STARTTLS"); !ok {
 		return fmt.Errorf("smtp server does not advertise STARTTLS")
 	}
@@ -95,6 +113,7 @@ func (s *SMTPSender) SendVerificationCode(ctx context.Context, recipient, code, 
 		"Ваш код для %s в ЕщёЕсть: %s\r\n\r\nКод действует ограниченное время. Если вы не запрашивали его, просто проигнорируйте письмо.\r\n",
 		action, code,
 	)
+	// SMTP messages consist of RFC-style headers, a blank line, then the body.
 	message := strings.Join([]string{
 		"From: " + s.from.String(),
 		"To: " + to.String(),

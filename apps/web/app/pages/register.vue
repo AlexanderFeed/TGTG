@@ -2,6 +2,9 @@
 import { ArrowLeft, Check, KeyRound, Mail, Sparkles, UserRound } from 'lucide-vue-next'
 
 const { requestRegistrationCode, verifyRegistrationCode, errorMessage, isAuthenticated } = useAuth()
+
+// Registration also has two steps. The first request only creates an email
+// challenge; the `users` row is created by Go after successful verification.
 const step = ref<'details' | 'code'>('details')
 const form = reactive({
   name: '',
@@ -17,6 +20,8 @@ if (isAuthenticated.value) {
   await navigateTo('/')
 }
 
+// This is the frontend entry point for POST /api/v1/auth/register/request.
+// Lightweight checks give instant feedback; Go repeats authoritative validation.
 const requestCode = async () => {
   error.value = ''
   if (form.name.trim().length < 2) {
@@ -41,6 +46,8 @@ const requestCode = async () => {
   }
 }
 
+// This is the frontend entry point for POST /api/v1/auth/register/verify.
+// The composable keeps HTTP details out of this presentational page.
 const verifyCode = async () => {
   error.value = ''
   if (!/^\d{6}$/.test(code.value)) {
